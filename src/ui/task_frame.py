@@ -144,7 +144,7 @@ class TaskFrame(ttk.Frame):
             button_frame,
             text="✍",
             command=self._on_edit,
-            style="Link.TButton", 
+            style="info.Link.TButton", 
             width=5
         )
         edit_button.pack(side=LEFT, padx=2)
@@ -153,7 +153,7 @@ class TaskFrame(ttk.Frame):
             button_frame,
             text="🗑️",
             command=self._on_delete,
-            style="Link.TButton",
+            style="danger.Link.TButton",
             width=5
         )
         delete_button.pack(side=LEFT, padx=2)

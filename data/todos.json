@@ -10,7 +10,7 @@
         "tags": [
             "test"
         ],
-        "completed_at": "2025-03-30T11:29:30.923200"
+        "completed_at": "2025-03-30T12:56:30.773873"
     },
     {
         "id": "af86276f-4f79-4e4f-97c9-6f945fe06108",
@@ -61,19 +61,6 @@
         "status": "To Do",
         "tags": [
             "jndtf"
-        ],
-        "completed_at": null
-    },
-    {
-        "id": "567f7666-9ebf-4a49-aee9-3d6c58559616",
-        "title": "wryjyrte",
-        "description": "hjnytj",
-        "created_at": "2025-03-30T12:20:05.012126",
-        "due_date": "2025-03-30T12:19:58.947777",
-        "priority": "High",
-        "status": "To Do",
-        "tags": [
-            "djy"
         ],
         "completed_at": null
     },

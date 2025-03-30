@@ -7,6 +7,7 @@ import ttkbootstrap as tb
 from ttkbootstrap.constants import *
 from datetime import datetime, timedelta
 import traceback
+from dateutil import parser  # Add the missing import
 
 from ..data.task_manager import TaskManager
 from .task_frame import TaskFrame
@@ -40,9 +41,19 @@ class TodoApp:
             iconphoto=""
         )
         
+        # Set the window to maximized state
+        self.root.state('zoomed')  # For Windows
+        # For Linux/Mac, use: self.root.attributes('-zoomed', True)
+        
         self.task_manager = TaskManager()
         self.current_filter = "All"  # Changed default filter to All
         self.current_sort = "Due Date"
+        
+        # Add state tracking for loaded data
+        self.tasks_loaded = False
+        self.drafts_loaded = False
+        self.tasks_need_refresh = True
+        self.drafts_need_refresh = True
         
         # Center the window on screen
         center_window(self.root)
@@ -53,7 +64,10 @@ class TodoApp:
         self._setup_variables()
         self._create_widgets()
         self._setup_layout()
+        
+        # Only load the initial tab's data (Tasks tab is shown first)
         self._load_tasks()
+        self.tasks_loaded = True
         
     def _configure_custom_styles(self):
         """
@@ -94,10 +108,14 @@ class TodoApp:
         self.search_var = tk.StringVar()
         self.search_var.trace_add("write", self._on_search_changed)
         
-        self.filter_var = tk.StringVar(value="All")  # Changed default filter to All
+        self.filter_var = tk.StringVar(value="Due Today")  # Changed default filter to Due Today
         self.filter_var.trace_add("write", self._on_filter_changed)
         
-        self.sort_var = tk.StringVar(value="Due Date")
+        self.sort_var = tk.StringVar(value="Priority")  # Changed default sort to Priority
+        
+        # Add a variable to track completed tasks visibility
+        self.show_completed_var = tk.BooleanVar(value=True)
+        self.show_completed_var.trace_add("write", self._on_show_completed_changed)
     
     def _create_widgets(self):
         """
@@ -156,6 +174,36 @@ class TodoApp:
         )
         sort_dropdown.pack(side=LEFT, padx=5)
         sort_dropdown.bind("<<ComboboxSelected>>", self._on_sort_changed)
+
+        # Add a refresh button
+        refresh_button = ttk.Button(
+            filter_frame,
+            text="🔄 Refresh",
+            command=self._refresh_tasks,
+            style="info.TButton",
+            width=12
+        )
+        refresh_button.pack(side=LEFT, padx=(15, 5))
+        
+        # Replace checkbox with toggle button for completed tasks
+        completed_toggle_frame = ttk.Frame(filter_frame)
+        completed_toggle_frame.pack(side=LEFT, padx=(15, 5))
+        
+        ttk.Label(
+            completed_toggle_frame, 
+            text="Show Completed:", 
+            font=("Helvetica", 10)
+        ).pack(side=LEFT, padx=(0, 5))
+        
+        # Create toggle button with different text based on state
+        self.completed_toggle_button = ttk.Button(
+            completed_toggle_frame,
+            text="On",
+            command=self._toggle_completed_visibility,
+            style="success.TButton" if self.show_completed_var.get() else "secondary.Outline.TButton",
+            width=6
+        )
+        self.completed_toggle_button.pack(side=LEFT)
         
         filter_frame.pack(side=LEFT, padx=10, fill=X, expand=True)
         
@@ -264,11 +312,21 @@ class TodoApp:
         print(f"Tab changed to: {tab_name}")
         
         if tab_name == "Tasks":
-            self._load_tasks()
+            if not self.tasks_loaded or self.tasks_need_refresh:
+                print("Loading tasks data")
+                self._load_tasks()
+                self.tasks_loaded = True
+                self.tasks_need_refresh = False
+            else:
+                print("Using cached tasks data")
         elif tab_name == "Drafts":
-            print("Loading drafts tab")
-            self.drafts_frame.load_drafts()
-            print("Drafts loaded")
+            if not self.drafts_loaded or self.drafts_need_refresh:
+                print("Loading drafts data")
+                self.drafts_frame.load_drafts()
+                self.drafts_loaded = True
+                self.drafts_need_refresh = False
+            else:
+                print("Using cached drafts data")
     
     def _load_tasks(self):
         """
@@ -295,7 +353,7 @@ class TodoApp:
             
             ttk.Label(
                 debug_frame, 
-                text=f"Total tasks: {len(all_tasks)} | Filtered: {len(tasks)} | Filter: {self.filter_var.get()}", 
+                text=f"Total tasks: {len(all_tasks)} | Filtered: {len(tasks)} | Filter: {self.filter_var.get()} | Show Completed: {self.show_completed_var.get()}", 
                 foreground="#FFFFFF",
                 font=("Helvetica", 10)
             ).pack(anchor=tk.W)
@@ -357,46 +415,61 @@ class TodoApp:
         """
         search_term = self.search_var.get().lower()
         filter_value = self.filter_var.get()
+        show_completed = self.show_completed_var.get()
         
         all_tasks = self.task_manager.get_all_tasks()
-        print(f"Filter: {filter_value}, Search: '{search_term}', Total tasks before filtering: {len(all_tasks)}")
+        print(f"Filter: {filter_value}, Search: '{search_term}', Show Completed: {show_completed}, Total tasks before filtering: {len(all_tasks)}")
         
         # Debugging: print the first task if available
         if all_tasks:
             print(f"Sample task: {all_tasks[0]['title']} - Status: {all_tasks[0]['status']}")
         
+        # First apply regular filters
+        filtered_tasks = all_tasks.copy()
+        
         # Apply search filter
         if search_term:
             filtered_tasks = [
-                task for task in all_tasks 
+                task for task in filtered_tasks 
                 if search_term in task["title"].lower() or 
                    search_term in (task["description"] or "").lower() or
                    any(search_term in tag.lower() for tag in task["tags"])
             ]
             print(f"After search filter: {len(filtered_tasks)} tasks")
-            all_tasks = filtered_tasks
         
         # Apply status/priority filter
         if filter_value == "All":
-            return all_tasks
+            # Keep all tasks, no further filtering needed
+            pass
         elif filter_value in ["To Do", "In Progress", "Completed"]:
-            filtered_tasks = [task for task in all_tasks if task["status"] == filter_value]
+            filtered_tasks = [task for task in filtered_tasks if task["status"] == filter_value]
             print(f"After status filter: {len(filtered_tasks)} tasks")
-            return filtered_tasks
         elif filter_value == "High Priority":
-            filtered_tasks = [task for task in all_tasks if task["priority"] == "High"]
+            filtered_tasks = [task for task in filtered_tasks if task["priority"] == "High"]
             print(f"After priority filter: {len(filtered_tasks)} tasks")
-            return filtered_tasks
         elif filter_value == "Overdue":
-            filtered_tasks = self.task_manager.get_tasks_overdue()
+            today = datetime.now().date()
+            filtered_tasks = [
+                task for task in filtered_tasks 
+                if task["due_date"] and 
+                   parser.parse(task["due_date"]).date() < today
+            ]
             print(f"Overdue tasks: {len(filtered_tasks)}")
-            return filtered_tasks
         elif filter_value == "Due Today":
-            filtered_tasks = self.task_manager.get_tasks_due_today()
+            today = datetime.now().date()
+            filtered_tasks = [
+                task for task in filtered_tasks 
+                if task["due_date"] and 
+                   parser.parse(task["due_date"]).date() == today
+            ]
             print(f"Due today tasks: {len(filtered_tasks)}")
-            return filtered_tasks
         
-        return all_tasks
+        # Finally apply the completed filter - but only if not specifically showing completed tasks
+        if not show_completed and filter_value != "Completed":
+            filtered_tasks = [task for task in filtered_tasks if task["status"] != "Completed"]
+            print(f"After hiding completed: {len(filtered_tasks)} tasks")
+        
+        return filtered_tasks
     
     def _sort_tasks(self, tasks):
         """
@@ -443,13 +516,23 @@ class TodoApp:
             
         return tasks
     
+    def mark_tasks_for_refresh(self):
+        """Mark tasks data as needing refresh."""
+        self.tasks_need_refresh = True
+    
+    def mark_drafts_for_refresh(self):
+        """Mark drafts data as needing refresh."""
+        self.drafts_need_refresh = True
+    
     def _open_add_dialog(self):
         """
         Open the add task dialog.
         """
         dialog = AddTaskDialog(self.root, self.task_manager)
         self.root.wait_window(dialog.top)
-        self._load_tasks()
+        self.mark_tasks_for_refresh()
+        if self.notebook.tab(self.notebook.select(), "text") == "Tasks":
+            self._load_tasks()
     
     def _on_edit_task(self, task_id):
         """
@@ -462,7 +545,9 @@ class TodoApp:
         if task:
             dialog = EditTaskDialog(self.root, self.task_manager, task)
             self.root.wait_window(dialog.top)
-            self._load_tasks()
+            self.mark_tasks_for_refresh()
+            if self.notebook.tab(self.notebook.select(), "text") == "Tasks":
+                self._load_tasks()
     
     def _on_delete_task(self, task_id):
         """
@@ -479,7 +564,9 @@ class TodoApp:
             )
             if confirm:
                 self.task_manager.delete_task(task_id)
-                self._load_tasks()
+                self.mark_tasks_for_refresh()
+                if self.notebook.tab(self.notebook.select(), "text") == "Tasks":
+                    self._load_tasks()
     
     def _on_status_change(self, task_id, new_status):
         """
@@ -490,7 +577,9 @@ class TodoApp:
             new_status (str): New status
         """
         self.task_manager.update_task(task_id, status=new_status)
-        self._load_tasks()
+        self.mark_tasks_for_refresh()
+        if self.notebook.tab(self.notebook.select(), "text") == "Tasks":
+            self._load_tasks()
     
     def _on_search_changed(self, *args):
         """
@@ -508,6 +597,42 @@ class TodoApp:
         """
         Handle sort option changes.
         """
+        self._load_tasks()
+    
+    def _on_show_completed_changed(self, *args):
+        """
+        Handle show/hide completed tasks toggle changes.
+        """
+        print(f"Show completed changed to: {self.show_completed_var.get()}")
+        self._load_tasks()
+    
+    def _toggle_completed_visibility(self):
+        """
+        Toggle the visibility of completed tasks.
+        """
+        # Toggle the variable value
+        current_state = self.show_completed_var.get()
+        self.show_completed_var.set(not current_state)
+        
+        # Update the button text and style
+        new_state = self.show_completed_var.get()
+        if new_state:
+            self.completed_toggle_button.configure(
+                text="On", 
+                style="success.TButton"
+            )
+        else:
+            self.completed_toggle_button.configure(
+                text="Off", 
+                style="secondary.Outline.TButton"
+            )
+    
+    def _refresh_tasks(self):
+        """
+        Explicitly refresh the tasks data and UI.
+        """
+        print("Manually refreshing tasks...")
+        self.mark_tasks_for_refresh()
         self._load_tasks()
     
     def _toggle_theme(self):

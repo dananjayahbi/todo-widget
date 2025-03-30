@@ -10,6 +10,7 @@ from dateutil import parser
 
 from .assign_draft_dialog import AssignDraftDialog
 from .add_draft_dialog import AddDraftDialog
+from .edit_draft_dialog import EditDraftDialog  # Import the new dialog
 from ..utils.helpers import format_date
 from ..utils.card_styles import apply_card_styles
 from ..utils.grid_layout import SimpleGridLayout
@@ -19,7 +20,7 @@ class DraftTaskFrame(ttk.Frame):
     Frame for displaying an individual draft task.
     """
     
-    def __init__(self, parent, draft, on_assign, on_delete):
+    def __init__(self, parent, draft, on_assign, on_delete, on_edit):  # Add on_edit parameter
         """
         Initialize the draft task frame.
         
@@ -28,12 +29,14 @@ class DraftTaskFrame(ttk.Frame):
             draft (dict): Draft task data
             on_assign (callable): Callback for assign action
             on_delete (callable): Callback for delete action
+            on_edit (callable): Callback for edit action
         """
         super().__init__(parent, padding=5)
         
         self.draft = draft
         self.on_assign = on_assign
         self.on_delete = on_delete
+        self.on_edit = on_edit  # Store the edit callback
         
         # Configure the frame to properly expand in the grid
         self.configure(style="info.TFrame", width=300, height=180)
@@ -96,6 +99,16 @@ class DraftTaskFrame(ttk.Frame):
         )
         assign_button.pack(side=LEFT, padx=2)
         
+        # Add Edit button
+        edit_button = ttk.Button(
+            button_frame,
+            text="✍",
+            command=self._on_edit,
+            style="info.Link.TButton",
+            width=3
+        )
+        edit_button.pack(side=LEFT, padx=2)
+        
         delete_button = ttk.Button(
             button_frame,
             text="🗑️",
@@ -121,7 +134,7 @@ class DraftTaskFrame(ttk.Frame):
             date_frame,
             text="🕒",
             font=("Helvetica", 10)
-        ).pack(side=LEFT, padx=(0, 5))
+        ).pack(side=LEFT, padx=(0, 5), pady=(0, 8))
         
         created_date_text = self._format_date(self.draft["created_at"])
         created_label = ttk.Label(
@@ -141,7 +154,7 @@ class DraftTaskFrame(ttk.Frame):
                 desc_frame,
                 text="📋",
                 font=("Helvetica", 10)
-            ).pack(side=LEFT, anchor=N, padx=(0, 5), pady=(0, 5))
+            ).pack(side=LEFT, anchor=N, padx=(0, 5), pady=(5, 0))
             
             # Description text with better wrapping and styling
             desc_text = self.draft["description"]
@@ -191,6 +204,12 @@ class DraftTaskFrame(ttk.Frame):
         """
         self.on_assign(self.draft["id"])
 
+    def _on_edit(self):
+        """
+        Handle edit button click.
+        """
+        self.on_edit(self.draft["id"])
+
     def _on_delete(self):
         """
         Handle delete button click.
@@ -233,6 +252,16 @@ class DraftsFrame(ttk.Frame):
             font=("Helvetica", 16, "bold")
         )
         title_label.pack(side=LEFT)
+        
+        # Add a refresh button
+        refresh_button = ttk.Button(
+            header_frame,
+            text="🔄 Refresh",
+            command=self._refresh_drafts,
+            style="info.TButton",
+            width=12
+        )
+        refresh_button.pack(side=RIGHT, padx=5)
         
         add_button = ttk.Button(
             header_frame,
@@ -328,7 +357,8 @@ class DraftsFrame(ttk.Frame):
                     self.scrollable_frame, 
                     draft,
                     self._on_assign_draft,
-                    self._on_delete_draft
+                    self._on_delete_draft,
+                    self._on_edit_draft  # Add the edit callback
                 )
                 # Apply consistent styling
                 apply_card_styles(draft_frame)
@@ -344,6 +374,47 @@ class DraftsFrame(ttk.Frame):
         """
         dialog = AddDraftDialog(self.parent, self.task_manager)
         self.parent.wait_window(dialog.top)
+        
+        # Access the main app and mark drafts for refresh
+        # This could be in TodoApp or parent of this frame
+        if hasattr(self.parent, 'mark_drafts_for_refresh'):
+            self.parent.mark_drafts_for_refresh()
+        else:
+            # Find TodoApp instance in widget hierarchy
+            parent = self.parent
+            while parent and not hasattr(parent, 'mark_drafts_for_refresh'):
+                if hasattr(parent, 'master'):
+                    parent = parent.master
+                else:
+                    break
+            
+            if parent and hasattr(parent, 'mark_drafts_for_refresh'):
+                parent.mark_drafts_for_refresh()
+                
+        self.load_drafts()
+    
+    def _refresh_drafts(self):
+        """
+        Explicitly refresh the drafts data and UI.
+        """
+        print("Manually refreshing drafts...")
+        
+        # Mark drafts for refresh in the parent TodoApp
+        if hasattr(self.parent, 'mark_drafts_for_refresh'):
+            self.parent.mark_drafts_for_refresh()
+        else:
+            # Find TodoApp instance in widget hierarchy
+            parent = self.parent
+            while parent and not hasattr(parent, 'mark_drafts_for_refresh'):
+                if hasattr(parent, 'master'):
+                    parent = parent.master
+                else:
+                    break
+            
+            if parent and hasattr(parent, 'mark_drafts_for_refresh'):
+                parent.mark_drafts_for_refresh()
+        
+        # Reload drafts
         self.load_drafts()
     
     def _on_assign_draft(self, draft_id):
@@ -357,6 +428,53 @@ class DraftsFrame(ttk.Frame):
         if draft:
             dialog = AssignDraftDialog(self.parent, self.task_manager, draft)
             self.parent.wait_window(dialog.top)
+            
+            # Mark both drafts and tasks for refresh since a task was created
+            if hasattr(self.parent, 'mark_drafts_for_refresh'):
+                self.parent.mark_drafts_for_refresh()
+                self.parent.mark_tasks_for_refresh()
+            else:
+                # Find TodoApp instance in widget hierarchy
+                parent = self.parent
+                while parent and not hasattr(parent, 'mark_drafts_for_refresh'):
+                    if hasattr(parent, 'master'):
+                        parent = parent.master
+                    else:
+                        break
+                
+                if parent and hasattr(parent, 'mark_drafts_for_refresh'):
+                    parent.mark_drafts_for_refresh()
+                    parent.mark_tasks_for_refresh()
+                    
+            self.load_drafts()
+    
+    def _on_edit_draft(self, draft_id):
+        """
+        Handle editing a draft task.
+        
+        Args:
+            draft_id (str): ID of the draft to edit
+        """
+        draft = self.task_manager.get_draft_by_id(draft_id)
+        if draft:
+            dialog = EditDraftDialog(self.parent, self.task_manager, draft)
+            self.parent.wait_window(dialog.top)
+            
+            # Mark drafts for refresh
+            if hasattr(self.parent, 'mark_drafts_for_refresh'):
+                self.parent.mark_drafts_for_refresh()
+            else:
+                # Find TodoApp instance in widget hierarchy
+                parent = self.parent
+                while parent and not hasattr(parent, 'mark_drafts_for_refresh'):
+                    if hasattr(parent, 'master'):
+                        parent = parent.master
+                    else:
+                        break
+                
+                if parent and hasattr(parent, 'mark_drafts_for_refresh'):
+                    parent.mark_drafts_for_refresh()
+                    
             self.load_drafts()
     
     def _on_delete_draft(self, draft_id):
@@ -374,4 +492,20 @@ class DraftsFrame(ttk.Frame):
             )
             if confirm:
                 self.task_manager.delete_draft(draft_id)
+                
+                # Mark drafts for refresh
+                if hasattr(self.parent, 'mark_drafts_for_refresh'):
+                    self.parent.mark_drafts_for_refresh()
+                else:
+                    # Find TodoApp instance in widget hierarchy
+                    parent = self.parent
+                    while parent and not hasattr(parent, 'mark_drafts_for_refresh'):
+                        if hasattr(parent, 'master'):
+                            parent = parent.master
+                        else:
+                            break
+                    
+                    if parent and hasattr(parent, 'mark_drafts_for_refresh'):
+                        parent.mark_drafts_for_refresh()
+                        
                 self.load_drafts()
