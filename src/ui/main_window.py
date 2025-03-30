@@ -338,8 +338,13 @@ class TodoApp:
         Load tasks from the task manager.
         """
         try:
-            # Clear existing tasks
-            self.tasks_grid_layout.clear()
+            # Clear existing tasks - safely check if the grid layout exists and is valid
+            try:
+                if hasattr(self, 'tasks_grid_layout'):
+                    self.tasks_grid_layout.clear()
+            except (tk.TclError, AttributeError, Exception) as e:
+                print(f"Non-critical error clearing tasks: {e}")
+                # If there's an error, the grid layout might be invalid, so we'll recreate it later
 
             # Get all tasks for debugging
             all_tasks = self.task_manager.get_all_tasks()
@@ -352,17 +357,16 @@ class TodoApp:
             # Sort tasks
             tasks = self._sort_tasks(tasks)
 
-            # Create a new debug frame every time rather than trying to reuse it
-            # This avoids errors with invalid window path names
-            if hasattr(self, 'debug_frame'):
+            # Start with a clean slate - destroy all frames in the scrollable frame to avoid widget conflicts
+            for child in self.scrollable_frame.winfo_children():
                 try:
-                    self.debug_frame.destroy()
-                except Exception:
-                    pass  # Ignore errors if it's already been destroyed
-            
+                    child.destroy()
+                except Exception as e:
+                    print(f"Error destroying child widget: {e}")
+
             # Create a fresh debug frame
             self.debug_frame = ttk.Frame(self.scrollable_frame)
-            self.debug_frame.grid(row=0, column=0, columnspan=10, sticky="ew", padx=10, pady=5)
+            self.debug_frame.pack(fill=X, padx=10, pady=(5, 10), anchor=NW)
 
             ttk.Label(
                 self.debug_frame,
@@ -371,20 +375,31 @@ class TodoApp:
                 font=("Helvetica", 10)
             ).pack(anchor=tk.W)
 
+            # Create a container frame for the task grid
+            self.tasks_content_frame = ttk.Frame(self.scrollable_frame)
+            self.tasks_content_frame.pack(fill=BOTH, expand=True, padx=5, pady=5)
+            
             # Add tasks to the UI
             if not tasks:
                 empty_label = ttk.Label(
-                    self.scrollable_frame,
+                    self.tasks_content_frame,
                     text="No tasks found. Click 'Add Task' to create a new one.",
                     font=("Helvetica", 12),
                     foreground="gray"
                 )
-                empty_label.grid(row=1, column=0, columnspan=10, pady=50)
+                empty_label.pack(pady=50)
             else:
+                # Create a new grid layout with the new parent frame
+                self.tasks_grid_layout = SimpleGridLayout(
+                    parent_frame=self.tasks_content_frame,
+                    min_column_width=320,
+                    padding=5
+                )
+                
                 # Add tasks to the grid layout
                 for task in tasks:
                     task_frame = TaskFrame(
-                        self.scrollable_frame,
+                        self.tasks_content_frame,
                         task,
                         self._on_status_change,
                         self._on_edit_task,
@@ -403,21 +418,25 @@ class TodoApp:
             error_msg = f"Error loading tasks: {str(e)}\n{traceback.format_exc()}"
             print(error_msg)  # Print to console
 
-            # Display error in UI
-            error_frame = ttk.Frame(self.scrollable_frame)
-            error_frame.pack(fill=X, pady=10, padx=10)
+            # Display error in UI - be cautious with widget creation
+            try:
+                error_frame = ttk.Frame(self.scrollable_frame)
+                error_frame.pack(fill=X, pady=10, padx=10)
 
-            ttk.Label(
-                error_frame,
-                text="Error loading tasks:",
-                foreground="#FF5252",
-                font=("Helvetica", 12, "bold")
-            ).pack(anchor=W)
+                ttk.Label(
+                    error_frame,
+                    text="Error loading tasks:",
+                    foreground="#FF5252",
+                    font=("Helvetica", 12, "bold")
+                ).pack(anchor=W)
 
-            error_text = tk.Text(error_frame, height=10, width=80, bg="#3D3D3D", fg="#FFFFFF")
-            error_text.insert("1.0", error_msg)
-            error_text.configure(state="disabled")
-            error_text.pack(fill=X, pady=5)
+                error_text = tk.Text(error_frame, height=10, width=80, bg="#3D3D3D", fg="#FFFFFF")
+                error_text.insert("1.0", error_msg)
+                error_text.configure(state="disabled")
+                error_text.pack(fill=X, pady=5)
+            except Exception as e:
+                print(f"Failed to create error display: {e}")
+                # If we can't create an error display, at least we logged the error
     
     def _get_filtered_tasks(self):
         """
