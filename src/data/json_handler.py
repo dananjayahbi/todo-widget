@@ -39,15 +39,29 @@ class JsonHandler:
             list: List of todo items
         """
         try:
+            print(f"Attempting to load data from {self.file_path}")
             with open(self.file_path, 'r', encoding='utf-8') as file:
-                return json.load(file)
+                file_content = file.read()
+                if not file_content.strip():
+                    print(f"File {self.file_path} is empty, returning empty list")
+                    return []
+                    
+                try:
+                    data = json.loads(file_content)
+                    print(f"Successfully loaded {len(data)} items from {self.file_path}")
+                    return data
+                except json.JSONDecodeError as e:
+                    print(f"JSON decode error in {self.file_path}: {str(e)}")
+                    print(f"File content: {file_content[:100]}...")
+                    raise
         except json.JSONDecodeError:
-            logging.error("Error decoding JSON file. Creating a new one.")
+            logging.error(f"Error decoding JSON file {self.file_path}. Creating a new one.")
             with open(self.file_path, 'w', encoding='utf-8') as file:
                 json.dump([], file)
             return []
         except Exception as e:
-            logging.error(f"Error loading data: {str(e)}")
+            logging.error(f"Error loading data from {self.file_path}: {str(e)}")
+            print(f"Error loading data from {self.file_path}: {str(e)}")
             return []
 
     def save_data(self, data):
