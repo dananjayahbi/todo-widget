@@ -6,6 +6,7 @@ from tkinter import ttk, messagebox
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
 from datetime import datetime, timedelta
+import traceback
 
 from ..data.task_manager import TaskManager
 from .task_frame import TaskFrame
@@ -14,6 +15,8 @@ from .edit_task_dialog import EditTaskDialog
 from .statistics_frame import StatisticsFrame
 from .draft_frame import DraftsFrame
 from ..utils.helpers import center_window
+from ..utils.custom_theme import create_custom_dark_theme
+from ..utils.grid_layout import ResponsiveGridLayout
 
 class TodoApp:
     """
@@ -24,9 +27,12 @@ class TodoApp:
         """
         Initialize the application window.
         """
+        # Create and register our custom theme
+        custom_theme = create_custom_dark_theme()
+        
         self.root = tb.Window(
             title="ToDo Widget",
-            themename="superhero",  # Always use dark theme
+            themename=custom_theme,  # Use our custom theme
             size=(1000, 700),
             position=(100, 100),
             minsize=(800, 600),
@@ -34,16 +40,51 @@ class TodoApp:
         )
         
         self.task_manager = TaskManager()
-        self.current_filter = "Due Today"  # Changed default filter
+        self.current_filter = "All"  # Changed default filter to All
         self.current_sort = "Due Date"
         
         # Center the window on screen
         center_window(self.root)
         
+        # Configure custom styles
+        self._configure_custom_styles()
+        
         self._setup_variables()
         self._create_widgets()
         self._setup_layout()
         self._load_tasks()
+        
+    def _configure_custom_styles(self):
+        """
+        Configure custom styles for widgets.
+        """
+        style = ttk.Style()
+        
+        # Configure frame styles with custom colors
+        style.configure("TFrame", background="#1C1C1C")
+        style.configure("TNotebook", background="#1C1C1C")
+        
+        # Update tab text to white for better visibility
+        style.configure("TNotebook.Tab", background="#3D3D3D", foreground="#FFFFFF")
+        style.map("TNotebook.Tab", 
+                  background=[("selected", "#5E5E5E")],
+                  foreground=[("selected", "#FFFFFF")])
+        
+        # Configure label styles with white text
+        style.configure("TLabel", background="#1C1C1C", foreground="#FFFFFF")
+        style.configure("Title.TLabel", font=("Helvetica", 20, "bold"), foreground="#FFFFFF")
+        
+        # Configure button styles with white text
+        style.configure("TButton", background="#3D3D3D", foreground="#FFFFFF")
+        
+        # Update combobox styles for filter and sort menus
+        style.configure("TCombobox", foreground="#FFFFFF", fieldbackground="#3D3D3D")
+        style.map("TCombobox", fieldbackground=[("readonly", "#3D3D3D")])
+        style.map("TCombobox", selectbackground=[("readonly", "#5E5E5E")])
+        style.map("TCombobox", selectforeground=[("readonly", "#FFFFFF")])
+        
+        # Entry styles
+        style.configure("TEntry", fieldbackground="#3D3D3D", foreground="#FFFFFF")
         
     def _setup_variables(self):
         """
@@ -52,7 +93,7 @@ class TodoApp:
         self.search_var = tk.StringVar()
         self.search_var.trace_add("write", self._on_search_changed)
         
-        self.filter_var = tk.StringVar(value="Due Today")  # Changed default filter
+        self.filter_var = tk.StringVar(value="All")  # Changed default filter to All
         self.filter_var.trace_add("write", self._on_filter_changed)
         
         self.sort_var = tk.StringVar(value="Due Date")
@@ -69,11 +110,9 @@ class TodoApp:
         title_label = ttk.Label(
             self.header_frame, 
             text="ToDo Widget", 
-            font=("Helvetica", 20, "bold")
+            style="Title.TLabel"
         )
         title_label.pack(side=LEFT, padx=10, pady=10)
-        
-        # Theme switcher removed - using only dark theme
         
         # Notebook (Tabs)
         self.notebook = ttk.Notebook(self.main_frame)
@@ -119,20 +158,38 @@ class TodoApp:
         
         filter_frame.pack(side=LEFT, padx=10, fill=X, expand=True)
         
-        # Task list frame with scrollbar
+        # Task list frame with scrollbar - using a proper layout
         self.task_container_frame = ttk.Frame(self.tasks_tab)
+        self.task_container_frame.pack(fill=BOTH, expand=True, pady=10)
         
-        # Create a canvas for scrolling
-        self.canvas = tk.Canvas(self.task_container_frame)
+        # Create a canvas for scrolling with proper sizing
+        self.canvas = tk.Canvas(self.task_container_frame, highlightthickness=0, bg="#1C1C1C")
         scrollbar = ttk.Scrollbar(self.task_container_frame, orient="vertical", command=self.canvas.yview)
-        self.scrollable_frame = ttk.Frame(self.canvas)
         
+        # Configure the canvas to expand properly
+        self.canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Create the scrollable frame with background matching the theme
+        self.scrollable_frame = ttk.Frame(self.canvas, style="TFrame")
         self.scrollable_frame.bind(
             "<Configure>",
             lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
         )
         
-        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        # Create the window in the canvas
+        self.canvas_window = self.canvas.create_window(
+            (0, 0), 
+            window=self.scrollable_frame, 
+            anchor="nw", 
+            tags="self.scrollable_frame",
+            width=self.canvas.winfo_width()  # Set the width to match canvas
+        )
+        
+        # Update the scrollable frame width when canvas changes
+        self.canvas.bind('<Configure>', self._on_canvas_configure)
+        
+        # Configure canvas scrolling
         self.canvas.configure(yscrollcommand=scrollbar.set)
         
         # Add mouse wheel scrolling to the canvas
@@ -140,9 +197,6 @@ class TodoApp:
         # For Linux/Unix systems
         self.canvas.bind("<Button-4>", lambda event: self.canvas.yview_scroll(-1, "units"))
         self.canvas.bind("<Button-5>", lambda event: self.canvas.yview_scroll(1, "units"))
-        
-        self.canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
         
         # Bottom action bar (for Tasks tab)
         self.action_frame = ttk.Frame(self.tasks_tab)
@@ -163,6 +217,13 @@ class TodoApp:
         
         # Set up tab change event
         self.notebook.bind("<<NotebookTabChanged>>", self._on_tab_changed)
+    
+    def _on_canvas_configure(self, event):
+        """
+        Update scrollable frame width when canvas is resized.
+        """
+        # Update the width of the frame to fill the canvas
+        self.canvas.itemconfig(self.canvas_window, width=event.width)
     
     def _setup_layout(self):
         """
@@ -187,48 +248,95 @@ class TodoApp:
         """
         tab_id = self.notebook.select()
         tab_name = self.notebook.tab(tab_id, "text")
+        print(f"Tab changed to: {tab_name}")
         
         if tab_name == "Tasks":
             self._load_tasks()
         elif tab_name == "Drafts":
+            print("Loading drafts tab")
             self.drafts_frame.load_drafts()
+            print("Drafts loaded")
     
     def _load_tasks(self):
         """
         Load tasks from the task manager.
         """
-        # Clear existing tasks
-        for widget in self.scrollable_frame.winfo_children():
-            widget.destroy()
-        
-        # Get tasks based on filters
-        tasks = self._get_filtered_tasks()
-        
-        # Sort tasks
-        tasks = self._sort_tasks(tasks)
-        
-        # Add tasks to the UI
-        if not tasks:
-            empty_label = ttk.Label(
-                self.scrollable_frame, 
-                text="No tasks found. Click 'Add Task' to create a new one.",
-                font=("Helvetica", 12),
-                foreground="gray"
-            )
-            empty_label.pack(pady=50)
-        else:
-            for task in tasks:
-                task_frame = TaskFrame(
+        try:
+            # Clear existing tasks
+            for widget in self.scrollable_frame.winfo_children():
+                widget.destroy()
+            
+            # Get all tasks for debugging
+            all_tasks = self.task_manager.get_all_tasks()
+            print(f"All tasks count: {len(all_tasks)}")
+            
+            # Get tasks based on filters
+            tasks = self._get_filtered_tasks()
+            print(f"Filtered tasks count: {len(tasks)}")
+            
+            # Sort tasks
+            tasks = self._sort_tasks(tasks)
+            
+            # Create debug info frame
+            debug_frame = ttk.Frame(self.scrollable_frame)
+            debug_frame.pack(fill=X, pady=5, padx=10)
+            
+            ttk.Label(
+                debug_frame, 
+                text=f"Total tasks: {len(all_tasks)} | Filtered: {len(tasks)} | Filter: {self.filter_var.get()}", 
+                foreground="#FFFFFF",
+                font=("Helvetica", 10)
+            ).pack(anchor=W)
+            
+            # Add tasks to the UI
+            if not tasks:
+                empty_label = ttk.Label(
                     self.scrollable_frame, 
-                    task, 
-                    self._on_status_change,
-                    self._on_edit_task,
-                    self._on_delete_task
+                    text="No tasks found. Click 'Add Task' to create a new one.",
+                    font=("Helvetica", 12),
+                    foreground="gray"
                 )
-                task_frame.pack(fill="x", pady=5)
-        
-        # Update statistics
-        self.stats_frame.update_stats()
+                empty_label.pack(pady=50)
+            else:
+                # Create a container for tasks
+                tasks_container = ttk.Frame(self.scrollable_frame)
+                tasks_container.pack(fill=BOTH, expand=True, padx=10, pady=10)
+                
+                # Create individual task frames without using grid layout first
+                for task in tasks:
+                    task_frame = TaskFrame(
+                        tasks_container, 
+                        task, 
+                        self._on_status_change,
+                        self._on_edit_task,
+                        self._on_delete_task
+                    )
+                    # Pack the frame directly for now to troubleshoot
+                    task_frame.pack(fill=X, expand=True, pady=5, padx=10)
+                    print(f"Added task to UI: {task['title']}")
+                
+            # Update statistics
+            self.stats_frame.update_stats()
+            
+        except Exception as e:
+            error_msg = f"Error loading tasks: {str(e)}\n{traceback.format_exc()}"
+            print(error_msg)  # Print to console
+            
+            # Display error in UI
+            error_frame = ttk.Frame(self.scrollable_frame)
+            error_frame.pack(fill=X, pady=10, padx=10)
+            
+            ttk.Label(
+                error_frame, 
+                text="Error loading tasks:", 
+                foreground="#FF5252",
+                font=("Helvetica", 12, "bold")
+            ).pack(anchor=W)
+            
+            error_text = tk.Text(error_frame, height=10, width=80, bg="#3D3D3D", fg="#FFFFFF")
+            error_text.insert("1.0", error_msg)
+            error_text.configure(state="disabled")
+            error_text.pack(fill=X, pady=5)
     
     def _get_filtered_tasks(self):
         """
@@ -241,27 +349,42 @@ class TodoApp:
         filter_value = self.filter_var.get()
         
         all_tasks = self.task_manager.get_all_tasks()
+        print(f"Filter: {filter_value}, Search: '{search_term}', Total tasks before filtering: {len(all_tasks)}")
+        
+        # Debugging: print the first task if available
+        if all_tasks:
+            print(f"Sample task: {all_tasks[0]['title']} - Status: {all_tasks[0]['status']}")
         
         # Apply search filter
         if search_term:
-            all_tasks = [
+            filtered_tasks = [
                 task for task in all_tasks 
                 if search_term in task["title"].lower() or 
-                   search_term in task["description"].lower() or
+                   search_term in (task["description"] or "").lower() or
                    any(search_term in tag.lower() for tag in task["tags"])
             ]
+            print(f"After search filter: {len(filtered_tasks)} tasks")
+            all_tasks = filtered_tasks
         
         # Apply status/priority filter
         if filter_value == "All":
             return all_tasks
         elif filter_value in ["To Do", "In Progress", "Completed"]:
-            return [task for task in all_tasks if task["status"] == filter_value]
+            filtered_tasks = [task for task in all_tasks if task["status"] == filter_value]
+            print(f"After status filter: {len(filtered_tasks)} tasks")
+            return filtered_tasks
         elif filter_value == "High Priority":
-            return [task for task in all_tasks if task["priority"] == "High"]
+            filtered_tasks = [task for task in all_tasks if task["priority"] == "High"]
+            print(f"After priority filter: {len(filtered_tasks)} tasks")
+            return filtered_tasks
         elif filter_value == "Overdue":
-            return self.task_manager.get_tasks_overdue()
+            filtered_tasks = self.task_manager.get_tasks_overdue()
+            print(f"Overdue tasks: {len(filtered_tasks)}")
+            return filtered_tasks
         elif filter_value == "Due Today":
-            return self.task_manager.get_tasks_due_today()
+            filtered_tasks = self.task_manager.get_tasks_due_today()
+            print(f"Due today tasks: {len(filtered_tasks)}")
+            return filtered_tasks
         
         return all_tasks
     
@@ -279,16 +402,32 @@ class TodoApp:
         
         if sort_by == "Due Date":
             # Sort by due date, with tasks without due dates at the end
-            return sorted(
-                tasks,
-                key=lambda x: datetime.fromisoformat(x["due_date"]) if x["due_date"] else datetime.max
-            )
+            # Add error handling for invalid date formats
+            def get_sort_date(task):
+                if not task.get("due_date"):
+                    return datetime.max
+                try:
+                    return datetime.fromisoformat(task["due_date"])
+                except (ValueError, TypeError):
+                    print(f"Invalid date format for task {task['title']}: {task['due_date']}")
+                    return datetime.max
+            
+            return sorted(tasks, key=get_sort_date)
         elif sort_by == "Priority":
             # Sort by priority: High, Medium, Low
             priority_order = {"High": 0, "Medium": 1, "Low": 2}
             return sorted(tasks, key=lambda x: priority_order.get(x["priority"], 3))
         elif sort_by == "Created Date":
-            return sorted(tasks, key=lambda x: x["created_at"])
+            # Add error handling for invalid date formats
+            def get_created_date(task):
+                if not task.get("created_at"):
+                    return datetime.min
+                try:
+                    return datetime.fromisoformat(task["created_at"])
+                except (ValueError, TypeError):
+                    return datetime.min
+            
+            return sorted(tasks, key=get_created_date)
         elif sort_by == "Title":
             return sorted(tasks, key=lambda x: x["title"].lower())
             

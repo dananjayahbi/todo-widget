@@ -35,6 +35,10 @@ class AddTaskDialog:
         self.top.transient(parent)
         self.top.grab_set()
         
+        # Configure dialog appearance to match theme
+        self.top.configure(bg="#1C1C1C")
+        style = ttk.Style(self.top)
+        
         # Set default due date to today
         today = datetime.now().isoformat()
         self.due_date_var = tk.StringVar(value=today)

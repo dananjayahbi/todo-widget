@@ -11,6 +11,7 @@ from dateutil import parser
 from .assign_draft_dialog import AssignDraftDialog
 from .add_draft_dialog import AddDraftDialog
 from ..utils.helpers import format_date
+from ..utils.card_styles import apply_card_styles
 
 class DraftTaskFrame(ttk.Frame):
     """
@@ -33,7 +34,10 @@ class DraftTaskFrame(ttk.Frame):
         self.on_assign = on_assign
         self.on_delete = on_delete
         
-        self.configure(style="info.TFrame")
+        # Configure the frame to properly expand in the grid
+        self.configure(style="info.TFrame", width=300, height=200)
+        self.pack_propagate(False)  # Prevent the frame from shrinking to fit its contents
+        
         self._create_widgets()
     
     def _format_date(self, date_str):
@@ -68,12 +72,13 @@ class DraftTaskFrame(ttk.Frame):
         )
         draft_icon.pack(side=LEFT, padx=(0, 5))
         
-        # Title
+        # Title with white text
         title_label = ttk.Label(
             header_frame,
             text=self.draft["title"],
             font=("Helvetica", 12, "bold"),
-            style="info.TLabel"
+            style="info.TLabel",
+            foreground="#FFFFFF"  # Ensuring white text
         )
         title_label.pack(side=LEFT, padx=5, fill=X, expand=True)
         
@@ -129,7 +134,7 @@ class DraftTaskFrame(ttk.Frame):
             )
             desc_label.pack(fill=X, padx=10, pady=(5, 0), anchor=W)
         
-        # Tags (if exist)
+        # Tags (if exist) with white text
         if self.draft["tags"]:
             tags_frame = ttk.Frame(container)
             tags_frame.pack(fill=X, padx=10, pady=(5, 0), anchor=W)
@@ -140,7 +145,8 @@ class DraftTaskFrame(ttk.Frame):
                     text=tag,
                     style="secondary.Inverse.TLabel",
                     font=("Helvetica", 8),
-                    padding=(5, 0)
+                    padding=(5, 0),
+                    foreground="#FFFFFF"  # Ensuring white text for tags
                 )
                 tag_label.pack(side=LEFT, padx=(0, 5))
 
@@ -207,16 +213,30 @@ class DraftsFrame(ttk.Frame):
         container_frame.pack(fill=BOTH, expand=True)
         
         # Create a canvas for scrolling
-        self.canvas = tk.Canvas(container_frame)
+        self.canvas = tk.Canvas(container_frame, highlightthickness=0, bg="#1C1C1C")
         scrollbar = ttk.Scrollbar(container_frame, orient="vertical", command=self.canvas.yview)
-        self.scrollable_frame = ttk.Frame(self.canvas)
         
+        # Configure the canvas
+        self.canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Create the scrollable frame
+        self.scrollable_frame = ttk.Frame(self.canvas, style="TFrame")
         self.scrollable_frame.bind(
             "<Configure>",
             lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
         )
         
-        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        # Create the window in the canvas
+        self.canvas_window = self.canvas.create_window(
+            (0, 0), 
+            window=self.scrollable_frame, 
+            anchor="nw",
+            tags="self.scrollable_frame"
+        )
+        
+        # Update scrollable frame width when canvas changes
+        self.canvas.bind('<Configure>', self._on_canvas_configure)
         self.canvas.configure(yscrollcommand=scrollbar.set)
         
         # Add mouse wheel scrolling to the canvas
@@ -224,9 +244,16 @@ class DraftsFrame(ttk.Frame):
         # For Linux/Unix systems
         self.canvas.bind("<Button-4>", lambda event: self.canvas.yview_scroll(-1, "units"))
         self.canvas.bind("<Button-5>", lambda event: self.canvas.yview_scroll(1, "units"))
+
+    def _on_canvas_configure(self, event):
+        """
+        Update scrollable frame width when canvas is resized.
+        """
+        # Update the width of the frame to fill the canvas
+        self.canvas.itemconfig(self.canvas_window, width=event.width)
         
-        self.canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
+        # Make sure the scrollable region is updated
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
     
     def load_drafts(self):
         """
@@ -238,25 +265,37 @@ class DraftsFrame(ttk.Frame):
         
         # Get all drafts
         drafts = self.task_manager.get_all_drafts()
+        print(f"Loading {len(drafts)} drafts")
         
         # Display drafts
         if not drafts:
             empty_label = ttk.Label(
-                self.scrollable_frame, 
+                self.scrollable_frame,
                 text="No draft tasks. Click 'Add Draft' to create one.",
                 font=("Helvetica", 12),
                 foreground="gray"
             )
             empty_label.pack(pady=50)
         else:
+            # Create a simple flow layout
+            items_container = ttk.Frame(self.scrollable_frame)
+            items_container.pack(fill=BOTH, expand=True, padx=5, pady=5)
+            
+            # Display each draft in a row for simplicity
             for draft in drafts:
+                print(f"Adding draft: {draft['title']}")
                 draft_frame = DraftTaskFrame(
-                    self.scrollable_frame, 
-                    draft, 
+                    items_container, 
+                    draft,
                     self._on_assign_draft,
                     self._on_delete_draft
                 )
-                draft_frame.pack(fill="x", pady=5)
+                # Apply consistent styling and pack vertically
+                apply_card_styles(draft_frame)
+                draft_frame.pack(fill=X, expand=True, pady=5, padx=5)
+                
+            # Force layout update
+            self.scrollable_frame.update_idletasks()
     
     def _open_add_draft_dialog(self):
         """

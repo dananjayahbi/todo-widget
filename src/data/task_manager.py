@@ -23,8 +23,18 @@ class TaskManager:
         """
         self.json_handler = JsonHandler(file_path)
         self.drafts_handler = JsonHandler(drafts_path)
+        
+        # Load tasks and drafts
         self.tasks = self.json_handler.load_data()
         self.drafts = self.drafts_handler.load_data()
+        
+        # Print loaded data for debugging
+        print(f"Loaded {len(self.tasks)} tasks from {file_path}")
+        print(f"Loaded {len(self.drafts)} drafts from {drafts_path}")
+        
+        # Verify task structure of first task if available
+        if self.tasks and len(self.tasks) > 0:
+            print(f"First task: {self.tasks[0]['title']} - Status: {self.tasks[0]['status']}")
     
     def add_task(self, title, description="", due_date=None, 
                 priority="Medium", tags=None, status="To Do"):
@@ -267,11 +277,13 @@ class TaskManager:
             list: Tasks due today
         """
         today = datetime.now().date()
-        return [
+        due_today = [
             task for task in self.tasks 
             if task["due_date"] and 
             parser.parse(task["due_date"]).date() == today
         ]
+        print(f"Due today: {len(due_today)} tasks, today is {today}")
+        return due_today
     
     def get_tasks_overdue(self):
         """
@@ -281,12 +293,14 @@ class TaskManager:
             list: Overdue tasks
         """
         today = datetime.now().date()
-        return [
+        overdue = [
             task for task in self.tasks 
             if (task["status"] != "Completed" and
                task["due_date"] and 
                parser.parse(task["due_date"]).date() < today)
         ]
+        print(f"Overdue: {len(overdue)} tasks, today is {today}")
+        return overdue
     
     def get_stats(self):
         """

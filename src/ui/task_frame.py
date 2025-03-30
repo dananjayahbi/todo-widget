@@ -33,6 +33,10 @@ class TaskFrame(ttk.Frame):
         self.on_edit = on_edit
         self.on_delete = on_delete
         
+        # Configure the frame to properly expand in the grid
+        self.configure(width=300, height=200)
+        self.pack_propagate(False)  # Prevent the frame from shrinking to fit its contents
+        
         # Apply appropriate styling based on task status
         self._apply_styling()
         self._create_widgets()
@@ -41,7 +45,7 @@ class TaskFrame(ttk.Frame):
         """
         Apply styling based on task status and priority.
         """
-        # Create borderframe with different colors based on priority
+        # Create a style name based on the task's status and priority
         if self.task["status"] == "Completed":
             self.configure(style="success.TFrame")
         elif self.task["priority"] == "High":
@@ -50,6 +54,19 @@ class TaskFrame(ttk.Frame):
             self.configure(style="warning.TFrame")
         else:
             self.configure(style="info.TFrame")
+        
+        # Custom colors for the task container
+        # For completed tasks, use a slightly lighter background
+        if self.task["status"] == "Completed":
+            self.container_bg = "#3D3D3D"
+            self.text_color = "#FFFFFF"
+        # For high priority tasks, use a slightly reddish background
+        elif self.task["priority"] == "High":
+            self.container_bg = "#3D3D3D"
+            self.text_color = "#FFFFFF"
+        else:
+            self.container_bg = "#3D3D3D"
+            self.text_color = "#FFFFFF"
     
     def _format_date(self, date_str):
         """
@@ -69,7 +86,7 @@ class TaskFrame(ttk.Frame):
         """
         # Container with border and padding
         container = ttk.Frame(self, padding=8, relief="raised", borderwidth=1)
-        container.pack(fill=X, expand=True)
+        container.pack(fill=BOTH, expand=True)
         
         # Header row (title, status, buttons)
         header_frame = ttk.Frame(container)
@@ -85,7 +102,7 @@ class TaskFrame(ttk.Frame):
         )
         toggle_button.pack(side=LEFT, padx=(0, 5))
         
-        # Title with appropriate styling
+        # Title with appropriate styling - using white text
         title_style = "TLabel"
         if self.task["status"] == "Completed":
             title_style = "success.TLabel"
@@ -96,11 +113,13 @@ class TaskFrame(ttk.Frame):
             header_frame,
             text=self.task["title"],
             font=("Helvetica", 12, "bold"),
-            style=title_style
+            style=title_style,
+            foreground="#FFFFFF",  # Ensuring white text
+            wraplength=250  # Add wrapping for long titles
         )
         title_label.pack(side=LEFT, padx=5, fill=X, expand=True)
         
-        # Priority badge
+        # Priority badge with white text
         priority_colors = {
             "High": "danger", 
             "Medium": "warning", 
@@ -112,7 +131,8 @@ class TaskFrame(ttk.Frame):
             text=self.task["priority"],
             style=f"{priority_style}.Inverse.TLabel",
             font=("Helvetica", 9),
-            padding=(5, 2)
+            padding=(5, 2),
+            foreground="#FFFFFF"  # Ensuring white text for priority label
         )
         priority_badge.pack(side=LEFT, padx=5)
         
@@ -138,9 +158,13 @@ class TaskFrame(ttk.Frame):
         )
         delete_button.pack(side=LEFT, padx=2)
         
-        # Details section
+        # Details section - use grid for better alignment
         details_frame = ttk.Frame(container, padding=(10, 5, 0, 0))
         details_frame.pack(fill=X, expand=True)
+        
+        details_frame.columnconfigure(0, weight=1)
+        details_frame.columnconfigure(1, weight=1)
+        details_frame.columnconfigure(2, weight=1)
         
         # Status indicator
         status_label = ttk.Label(
@@ -148,7 +172,7 @@ class TaskFrame(ttk.Frame):
             text=f"Status: {self.task['status']}",
             font=("Helvetica", 9)
         )
-        status_label.grid(row=0, column=0, sticky=W, padx=(0, 15))
+        status_label.grid(row=0, column=0, sticky=W)
         
         # Due date with formatting
         due_date_text = self._format_date(self.task["due_date"])
@@ -157,7 +181,7 @@ class TaskFrame(ttk.Frame):
             text=f"Due: {due_date_text}",
             font=("Helvetica", 9)
         )
-        due_date_label.grid(row=0, column=1, sticky=W, padx=(0, 15))
+        due_date_label.grid(row=0, column=1, sticky=W)
         
         # Created date
         created_date_text = self._format_date(self.task["created_at"])
@@ -178,14 +202,14 @@ class TaskFrame(ttk.Frame):
             desc_label = ttk.Label(
                 container,
                 text=desc_text,
-                wraplength=550,
+                wraplength=300,  # Adjusted wraplength for better display
                 justify=LEFT,
                 font=("Helvetica", 9),
                 foreground="gray"
             )
             desc_label.pack(fill=X, padx=10, pady=(5, 0), anchor=W)
         
-        # Tags (if exist)
+        # Tags (if exist) with white text
         if self.task["tags"]:
             tags_frame = ttk.Frame(container)
             tags_frame.pack(fill=X, padx=10, pady=(5, 0), anchor=W)
@@ -196,7 +220,8 @@ class TaskFrame(ttk.Frame):
                     text=tag,
                     style="secondary.Inverse.TLabel",
                     font=("Helvetica", 8),
-                    padding=(5, 0)
+                    padding=(5, 0),
+                    foreground="#FFFFFF"  # Ensuring white text for tags
                 )
                 tag_label.pack(side=LEFT, padx=(0, 5))
 
