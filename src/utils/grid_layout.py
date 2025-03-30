@@ -61,8 +61,20 @@ class ResponsiveGridLayout:
         """
         new_columns = self.calculate_columns()
         if new_columns != self.columns:
+            print(f"Column count changed from {self.columns} to {new_columns}")
             self.columns = new_columns
             self.reorganize_items()
+        
+        # Update the canvas scrollregion
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        
+        # Update the scrollable frame width - make sure it's at least as wide as the canvas
+        canvas_width = self.canvas.winfo_width()
+        min_width = max(canvas_width, self.columns * self.min_column_width)
+        self.parent_frame.configure(width=min_width)
+        
+        # Update the canvas window width to match the canvas width
+        self.canvas.itemconfig(self.canvas.find_withtag("self.scrollable_frame"), width=canvas_width)
     
     def clear(self):
         """
@@ -83,6 +95,10 @@ class ResponsiveGridLayout:
         Args:
             item_widget: Widget to add to the grid
         """
+        # Ensure the item has fixed dimensions
+        if hasattr(item_widget, 'configure'):
+            item_widget.configure(width=self.min_column_width)
+        
         # Keep track of all items for easier reorganization
         self.all_items.append(item_widget)
         
@@ -105,8 +121,9 @@ class ResponsiveGridLayout:
         item_frame = ttk.Frame(self.current_row)
         item_frame.grid(row=0, column=self.current_row_items, sticky="nsew", padx=5)
         
-        # Make sure the item frame has weight set
-        self.current_row.columnconfigure(self.current_row_items, weight=1)
+        # Make the item frame expand to fill its cell
+        item_frame.rowconfigure(0, weight=1)
+        item_frame.columnconfigure(0, weight=1)
         
         # Remove any existing geometry management from the item
         if hasattr(item_widget, 'pack_forget'):
@@ -122,6 +139,11 @@ class ResponsiveGridLayout:
         
         # Force update the layout
         self.parent_frame.update_idletasks()
+        
+        # Ensure parent frame is wide enough
+        canvas_width = self.canvas.winfo_width()
+        min_width = max(canvas_width, self.columns * self.min_column_width)
+        self.parent_frame.configure(width=min_width)
     
     def reorganize_items(self):
         """
@@ -129,6 +151,8 @@ class ResponsiveGridLayout:
         """
         if not self.all_items:
             return
+        
+        print(f"Reorganizing {len(self.all_items)} items into {self.columns} columns")
             
         # Store a copy of the items
         items_to_reorganize = list(self.all_items)
@@ -141,6 +165,11 @@ class ResponsiveGridLayout:
         self.current_row = None
         self.current_row_items = 0
         self.all_items = []
+        
+        # Ensure parent frame is wide enough for all columns
+        canvas_width = self.canvas.winfo_width()
+        min_width = max(canvas_width, self.columns * self.min_column_width)
+        self.parent_frame.configure(width=min_width)
         
         # Re-add all items with the new column count
         for item in items_to_reorganize:

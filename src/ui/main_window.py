@@ -17,6 +17,7 @@ from .draft_frame import DraftsFrame
 from ..utils.helpers import center_window
 from ..utils.custom_theme import create_custom_dark_theme
 from ..utils.grid_layout import ResponsiveGridLayout
+from ..utils.card_styles import apply_card_styles
 
 class TodoApp:
     """
@@ -158,19 +159,19 @@ class TodoApp:
         
         filter_frame.pack(side=LEFT, padx=10, fill=X, expand=True)
         
-        # Task list frame with scrollbar - using a proper layout
+        # Task list frame with scrollbar
         self.task_container_frame = ttk.Frame(self.tasks_tab)
         self.task_container_frame.pack(fill=BOTH, expand=True, pady=10)
         
-        # Create a canvas for scrolling with proper sizing
+        # Create a canvas for scrolling
         self.canvas = tk.Canvas(self.task_container_frame, highlightthickness=0, bg="#1C1C1C")
         scrollbar = ttk.Scrollbar(self.task_container_frame, orient="vertical", command=self.canvas.yview)
         
-        # Configure the canvas to expand properly
+        # Configure the canvas
         self.canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
         
-        # Create the scrollable frame with background matching the theme
+        # Create the scrollable frame
         self.scrollable_frame = ttk.Frame(self.canvas, style="TFrame")
         self.scrollable_frame.bind(
             "<Configure>",
@@ -182,8 +183,14 @@ class TodoApp:
             (0, 0), 
             window=self.scrollable_frame, 
             anchor="nw", 
-            tags="self.scrollable_frame",
-            width=self.canvas.winfo_width()  # Set the width to match canvas
+            tags="self.scrollable_frame"
+        )
+        
+        # Setup the responsive grid layout for tasks
+        self.tasks_grid_layout = ResponsiveGridLayout(
+            parent_frame=self.scrollable_frame,
+            canvas=self.canvas,
+            min_column_width=320  # Set a fixed card width
         )
         
         # Update the scrollable frame width when canvas changes
@@ -224,6 +231,12 @@ class TodoApp:
         """
         # Update the width of the frame to fill the canvas
         self.canvas.itemconfig(self.canvas_window, width=event.width)
+        
+        # Force update the scroll region
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        
+        # When canvas resizes, force layout recalculation
+        self.tasks_grid_layout.on_canvas_resize(event)
     
     def _setup_layout(self):
         """
@@ -262,9 +275,8 @@ class TodoApp:
         Load tasks from the task manager.
         """
         try:
-            # Clear existing tasks
-            for widget in self.scrollable_frame.winfo_children():
-                widget.destroy()
+            # Clear existing tasks and reset the grid layout
+            self.tasks_grid_layout.clear()
             
             # Get all tasks for debugging
             all_tasks = self.task_manager.get_all_tasks()
@@ -298,21 +310,19 @@ class TodoApp:
                 )
                 empty_label.pack(pady=50)
             else:
-                # Create a container for tasks
-                tasks_container = ttk.Frame(self.scrollable_frame)
-                tasks_container.pack(fill=BOTH, expand=True, padx=10, pady=10)
-                
-                # Create individual task frames without using grid layout first
+                # Add tasks to the responsive grid layout
                 for task in tasks:
                     task_frame = TaskFrame(
-                        tasks_container, 
+                        self.scrollable_frame, 
                         task, 
                         self._on_status_change,
                         self._on_edit_task,
                         self._on_delete_task
                     )
-                    # Pack the frame directly for now to troubleshoot
-                    task_frame.pack(fill=X, expand=True, pady=5, padx=10)
+                    # Apply consistent card styling
+                    apply_card_styles(task_frame)
+                    # Add to grid layout
+                    self.tasks_grid_layout.add_item(task_frame)
                     print(f"Added task to UI: {task['title']}")
                 
             # Update statistics

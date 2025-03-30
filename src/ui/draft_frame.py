@@ -12,6 +12,7 @@ from .assign_draft_dialog import AssignDraftDialog
 from .add_draft_dialog import AddDraftDialog
 from ..utils.helpers import format_date
 from ..utils.card_styles import apply_card_styles
+from ..utils.grid_layout import ResponsiveGridLayout
 
 class DraftTaskFrame(ttk.Frame):
     """
@@ -35,7 +36,7 @@ class DraftTaskFrame(ttk.Frame):
         self.on_delete = on_delete
         
         # Configure the frame to properly expand in the grid
-        self.configure(style="info.TFrame", width=300, height=200)
+        self.configure(style="info.TFrame", width=300, height=180)
         self.pack_propagate(False)  # Prevent the frame from shrinking to fit its contents
         
         self._create_widgets()
@@ -56,42 +57,42 @@ class DraftTaskFrame(ttk.Frame):
         """
         Create the widgets for the draft task frame.
         """
-        # Container with border and padding
+        # Container with border and padding - enhanced style
         container = ttk.Frame(self, padding=8, relief="raised", borderwidth=1)
-        container.pack(fill=X, expand=True)
+        container.pack(fill=BOTH, expand=True)
         
-        # Header row (title, buttons)
+        # Header row (title, buttons) - improved layout
         header_frame = ttk.Frame(container)
-        header_frame.pack(fill=X)
+        header_frame.pack(fill=X, pady=(0, 5))
         
-        # Draft icon - left side
+        # Draft icon with better styling
         draft_icon = ttk.Label(
             header_frame,
             text="📝",
-            font=("Helvetica", 12)
+            font=("Helvetica", 14)
         )
         draft_icon.pack(side=LEFT, padx=(0, 5))
         
-        # Title with white text
+        # Title with enhanced styling
         title_label = ttk.Label(
             header_frame,
             text=self.draft["title"],
             font=("Helvetica", 12, "bold"),
             style="info.TLabel",
-            foreground="#FFFFFF"  # Ensuring white text
+            foreground="#FFFFFF"
         )
         title_label.pack(side=LEFT, padx=5, fill=X, expand=True)
         
-        # Button frame - right side
+        # Button frame with improved button styling
         button_frame = ttk.Frame(header_frame)
         button_frame.pack(side=RIGHT)
         
         assign_button = ttk.Button(
             button_frame,
-            text="Assign",
+            text="✓ Assign",
             command=self._on_assign,
             style="success.Outline.TButton", 
-            width=8
+            width=10
         )
         assign_button.pack(side=LEFT, padx=2)
         
@@ -99,56 +100,90 @@ class DraftTaskFrame(ttk.Frame):
             button_frame,
             text="🗑️",
             command=self._on_delete,
-            style="Link.TButton",
-            width=5
+            style="danger.Link.TButton",
+            width=3
         )
         delete_button.pack(side=LEFT, padx=2)
         
-        # Details section
-        details_frame = ttk.Frame(container, padding=(10, 5, 0, 0))
-        details_frame.pack(fill=X, expand=True)
+        # Add a separator for visual structure
+        separator = ttk.Separator(container, orient='horizontal')
+        separator.pack(fill=X, pady=5)
         
-        # Created date
+        # Details section - improved layout
+        details_frame = ttk.Frame(container)
+        details_frame.pack(fill=BOTH, expand=True, padx=5)
+        
+        # Created date with icon
+        date_frame = ttk.Frame(details_frame)
+        date_frame.pack(fill=X, anchor=W, pady=(0, 5))
+        
+        ttk.Label(
+            date_frame,
+            text="🕒",
+            font=("Helvetica", 10)
+        ).pack(side=LEFT, padx=(0, 5))
+        
         created_date_text = self._format_date(self.draft["created_at"])
         created_label = ttk.Label(
-            details_frame,
+            date_frame,
             text=f"Created: {created_date_text}",
             font=("Helvetica", 9)
         )
         created_label.pack(side=LEFT)
         
-        # Description (if exists)
+        # Description with better styling
         if self.draft["description"]:
-            # Limit description length for display
+            desc_frame = ttk.Frame(details_frame)
+            desc_frame.pack(fill=BOTH, expand=True, pady=(0, 5))
+            
+            # Description icon
+            ttk.Label(
+                desc_frame,
+                text="📋",
+                font=("Helvetica", 10)
+            ).pack(side=LEFT, anchor=N, padx=(0, 5), pady=(0, 5))
+            
+            # Description text with better wrapping and styling
             desc_text = self.draft["description"]
             if len(desc_text) > 100:
                 desc_text = desc_text[:97] + "..."
                 
             desc_label = ttk.Label(
-                container,
+                desc_frame,
                 text=desc_text,
-                wraplength=550,
+                wraplength=240,
                 justify=LEFT,
                 font=("Helvetica", 9),
-                foreground="gray"
+                foreground="#E0E0E0"
             )
-            desc_label.pack(fill=X, padx=10, pady=(5, 0), anchor=W)
+            desc_label.pack(side=LEFT, fill=BOTH, expand=True, anchor=W)
         
-        # Tags (if exist) with white text
+        # Tags with improved styling
         if self.draft["tags"]:
             tags_frame = ttk.Frame(container)
-            tags_frame.pack(fill=X, padx=10, pady=(5, 0), anchor=W)
+            tags_frame.pack(fill=X, pady=(5, 0), anchor=W)
+            
+            # Tags icon
+            ttk.Label(
+                tags_frame,
+                text="🏷️",
+                font=("Helvetica", 10)
+            ).pack(side=LEFT, padx=(5, 5))
+            
+            # Tags with better styling
+            tags_container = ttk.Frame(tags_frame)
+            tags_container.pack(side=LEFT, fill=X)
             
             for tag in self.draft["tags"]:
                 tag_label = ttk.Label(
-                    tags_frame,
+                    tags_container,
                     text=tag,
-                    style="secondary.Inverse.TLabel",
+                    style="info.Inverse.TLabel",
                     font=("Helvetica", 8),
-                    padding=(5, 0),
-                    foreground="#FFFFFF"  # Ensuring white text for tags
+                    padding=(5, 2),
+                    foreground="#FFFFFF"
                 )
-                tag_label.pack(side=LEFT, padx=(0, 5))
+                tag_label.pack(side=LEFT, padx=(0, 5), pady=2)
 
     def _on_assign(self):
         """
@@ -235,6 +270,13 @@ class DraftsFrame(ttk.Frame):
             tags="self.scrollable_frame"
         )
         
+        # Setup the responsive grid layout for drafts
+        self.drafts_grid_layout = ResponsiveGridLayout(
+            parent_frame=self.scrollable_frame,
+            canvas=self.canvas,
+            min_column_width=320  # Set a fixed card width matching the tasks
+        )
+        
         # Update scrollable frame width when canvas changes
         self.canvas.bind('<Configure>', self._on_canvas_configure)
         self.canvas.configure(yscrollcommand=scrollbar.set)
@@ -244,7 +286,7 @@ class DraftsFrame(ttk.Frame):
         # For Linux/Unix systems
         self.canvas.bind("<Button-4>", lambda event: self.canvas.yview_scroll(-1, "units"))
         self.canvas.bind("<Button-5>", lambda event: self.canvas.yview_scroll(1, "units"))
-
+    
     def _on_canvas_configure(self, event):
         """
         Update scrollable frame width when canvas is resized.
@@ -252,16 +294,18 @@ class DraftsFrame(ttk.Frame):
         # Update the width of the frame to fill the canvas
         self.canvas.itemconfig(self.canvas_window, width=event.width)
         
-        # Make sure the scrollable region is updated
+        # Force update the scroll region
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        
+        # When canvas resizes, force layout recalculation
+        self.drafts_grid_layout.on_canvas_resize(event)
     
     def load_drafts(self):
         """
         Load and display draft tasks.
         """
         # Clear existing drafts
-        for widget in self.scrollable_frame.winfo_children():
-            widget.destroy()
+        self.drafts_grid_layout.clear()
         
         # Get all drafts
         drafts = self.task_manager.get_all_drafts()
@@ -277,22 +321,19 @@ class DraftsFrame(ttk.Frame):
             )
             empty_label.pack(pady=50)
         else:
-            # Create a simple flow layout
-            items_container = ttk.Frame(self.scrollable_frame)
-            items_container.pack(fill=BOTH, expand=True, padx=5, pady=5)
-            
-            # Display each draft in a row for simplicity
+            # Add drafts to the responsive grid layout
             for draft in drafts:
                 print(f"Adding draft: {draft['title']}")
                 draft_frame = DraftTaskFrame(
-                    items_container, 
+                    self.scrollable_frame, 
                     draft,
                     self._on_assign_draft,
                     self._on_delete_draft
                 )
-                # Apply consistent styling and pack vertically
+                # Apply consistent styling
                 apply_card_styles(draft_frame)
-                draft_frame.pack(fill=X, expand=True, pady=5, padx=5)
+                # Add to grid layout
+                self.drafts_grid_layout.add_item(draft_frame)
                 
             # Force layout update
             self.scrollable_frame.update_idletasks()
