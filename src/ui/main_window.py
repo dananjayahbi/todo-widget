@@ -33,7 +33,7 @@ class TodoApp:
         custom_theme = create_custom_dark_theme()
         
         self.root = tb.Window(
-            title="ToDo Widget",
+            title="Personal ToDo",
             themename=custom_theme,  # Use our custom theme
             size=(1000, 700),
             position=(100, 100),
