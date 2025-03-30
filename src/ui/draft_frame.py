@@ -65,9 +65,14 @@ class DraftTaskFrame(ttk.Frame):
         container = ttk.Frame(self, padding=8, relief="raised", borderwidth=1)
         container.pack(fill=BOTH, expand=True)
         
-        # Header row (title, buttons) - improved layout
+        # Header row (title, buttons) - improved layout using grid instead of pack
         header_frame = ttk.Frame(container)
         header_frame.pack(fill=X, pady=(0, 5))
+        
+        # Configure header_frame columns for better control over layout
+        header_frame.columnconfigure(0, weight=0)  # Icon column - fixed width
+        header_frame.columnconfigure(1, weight=1)  # Title column - expandable
+        header_frame.columnconfigure(2, weight=0)  # Buttons column - fixed width
         
         # Draft icon with better styling
         draft_icon = ttk.Label(
@@ -75,30 +80,41 @@ class DraftTaskFrame(ttk.Frame):
             text="📝",
             font=("Helvetica", 14)
         )
-        draft_icon.pack(side=LEFT, padx=(0, 5))
+        draft_icon.grid(row=0, column=0, sticky=W, padx=(0, 5))
         
-        # Title with enhanced styling
+        # Get title text for potential tooltip
+        title_text = self.draft["title"]
+        tooltip_text = title_text
+        
+        # Title with enhanced styling and controlled wrapping
         title_label = ttk.Label(
             header_frame,
-            text=self.draft["title"],
+            text=title_text,
             font=("Helvetica", 12, "bold"),
             style="info.TLabel",
-            foreground="#FFFFFF"
+            foreground="#FFFFFF",
+            wraplength=180,  # Control title width
+            justify=LEFT,
+            anchor=W
         )
-        title_label.pack(side=LEFT, padx=5, fill=X, expand=True)
+        title_label.grid(row=0, column=1, sticky=W+E, padx=5)
         
-        # Button frame with improved button styling
+        # Add tooltip for long titles
+        if len(title_text) > 25:
+            self._create_tooltip(title_label, tooltip_text)
+        
+        # Button frame with improved button styling - right side
         button_frame = ttk.Frame(header_frame)
-        button_frame.pack(side=RIGHT)
+        button_frame.grid(row=0, column=2, sticky=E)
         
         assign_button = ttk.Button(
             button_frame,
-            text="✓ Assign",
+            text="✓",
             command=self._on_assign,
-            style="success.Outline.TButton", 
-            width=10
+            style="success.Link.TButton", 
+            width=3
         )
-        assign_button.pack(side=LEFT, padx=2)
+        assign_button.pack(side=LEFT, padx=1)
         
         # Add View button
         view_button = ttk.Button(
@@ -108,7 +124,7 @@ class DraftTaskFrame(ttk.Frame):
             style="primary.Link.TButton",
             width=3
         )
-        view_button.pack(side=LEFT, padx=2)
+        view_button.pack(side=LEFT, padx=1)
         
         # Add Edit button
         edit_button = ttk.Button(
@@ -118,7 +134,7 @@ class DraftTaskFrame(ttk.Frame):
             style="info.Link.TButton",
             width=3
         )
-        edit_button.pack(side=LEFT, padx=2)
+        edit_button.pack(side=LEFT, padx=1)
         
         delete_button = ttk.Button(
             button_frame,
@@ -127,7 +143,7 @@ class DraftTaskFrame(ttk.Frame):
             style="danger.Link.TButton",
             width=3
         )
-        delete_button.pack(side=LEFT, padx=2)
+        delete_button.pack(side=LEFT, padx=1)
         
         # Add a separator for visual structure
         separator = ttk.Separator(container, orient='horizontal')
@@ -169,8 +185,8 @@ class DraftTaskFrame(ttk.Frame):
             
             # Description text with better wrapping and styling
             desc_text = self.draft["description"]
-            if len(desc_text) > 25:
-                desc_text = desc_text[:25] + "..."
+            if len(desc_text) > 200:
+                desc_text = desc_text[:200] + "..."
                 
             desc_label = ttk.Label(
                 desc_frame,
@@ -208,6 +224,41 @@ class DraftTaskFrame(ttk.Frame):
                     foreground="#FFFFFF"
                 )
                 tag_label.pack(side=LEFT, padx=(0, 5), pady=2)
+
+    def _create_tooltip(self, widget, text):
+        """Create a tooltip for a widget when cursor hovers over it."""
+        def enter(event):
+            self.tooltip = tk.Toplevel(widget)
+            self.tooltip.wm_overrideredirect(True)  # Remove window decorations
+            
+            # Calculate position
+            x = widget.winfo_rootx() + widget.winfo_width() // 2
+            y = widget.winfo_rooty() + widget.winfo_height()
+            
+            # Position tooltip a bit below the widget
+            self.tooltip.wm_geometry(f"+{x}+{y+10}")
+            
+            # Create label with tooltip text
+            label = ttk.Label(
+                self.tooltip, 
+                text=text, 
+                justify=LEFT,
+                background="#3D3D3D", 
+                foreground="#FFFFFF",
+                relief=SOLID,
+                borderwidth=1,
+                padding=(5, 3)
+            )
+            label.pack()
+        
+        def leave(event):
+            if hasattr(self, 'tooltip'):
+                self.tooltip.destroy()
+                del self.tooltip
+        
+        # Bind events
+        widget.bind("<Enter>", enter)
+        widget.bind("<Leave>", leave)
 
     def _on_view(self):
         """

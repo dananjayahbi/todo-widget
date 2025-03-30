@@ -93,6 +93,12 @@ class TaskFrame(ttk.Frame):
         header_frame = ttk.Frame(container)
         header_frame.pack(fill=X)
         
+        # Configure header_frame columns for better control
+        header_frame.columnconfigure(0, weight=0)  # Checkbox column - fixed width
+        header_frame.columnconfigure(1, weight=1)  # Title column - expandable
+        header_frame.columnconfigure(2, weight=0)  # Priority badge - fixed width
+        header_frame.columnconfigure(3, weight=0)  # Buttons - fixed width
+        
         # Status checkbox - left side
         self.toggle_var = tk.BooleanVar(value=self.task["status"] == "Completed")
         toggle_button = ttk.Checkbutton(
@@ -101,7 +107,11 @@ class TaskFrame(ttk.Frame):
             command=self._on_status_toggled,
             style="Switch.TCheckbutton"
         )
-        toggle_button.pack(side=LEFT, padx=(0, 5))
+        toggle_button.grid(row=0, column=0, sticky=W, padx=(0, 5))
+        
+        # Get title text and truncate if too long for tooltip
+        title_text = self.task["title"]
+        tooltip_text = title_text
         
         # Title with appropriate styling - using white text
         title_style = "TLabel"
@@ -112,13 +122,19 @@ class TaskFrame(ttk.Frame):
             
         title_label = ttk.Label(
             header_frame,
-            text=self.task["title"],
+            text=title_text,
             font=("Helvetica", 12, "bold"),
             style=title_style,
             foreground="#FFFFFF",  # Ensuring white text
-            wraplength=250  # Add wrapping for long titles
+            wraplength=180,  # Control wrapping for long titles
+            justify=LEFT,
+            anchor=W
         )
-        title_label.pack(side=LEFT, padx=5, fill=X, expand=True)
+        title_label.grid(row=0, column=1, sticky=W+E, padx=5)
+        
+        # Bind tooltip for full title on hover if title is long
+        if len(title_text) > 25:
+            self._create_tooltip(title_label, tooltip_text)
         
         # Priority badge with white text
         priority_colors = {
@@ -135,42 +151,42 @@ class TaskFrame(ttk.Frame):
             padding=(5, 2),
             foreground="#FFFFFF"
         )
-        priority_badge.pack(side=LEFT, padx=5)
+        priority_badge.grid(row=0, column=2, sticky=E, padx=2)
         
         # Button frame - right side
         button_frame = ttk.Frame(header_frame)
-        button_frame.pack(side=RIGHT, anchor=CENTER)  # Ensure the frame is centered vertically
+        button_frame.grid(row=0, column=3, sticky=E)
         
         # Add View button
         view_button = ttk.Button(
             button_frame,
-            text="   👁️",
+            text="👁️",
             command=self._on_view,
             style="primary.Link.TButton", 
-            width=5,
+            width=3,
             takefocus=False  # Prevent focus outline
         )
-        view_button.pack(side=LEFT, padx=0, pady=(0, 5))  # Added pady for top and bottom
+        view_button.pack(side=LEFT, padx=1)
         
         edit_button = ttk.Button(
             button_frame,
             text="✍",
             command=self._on_edit,
             style="info.Link.TButton", 
-            width=5,
+            width=3,
             takefocus=False  # Prevent focus outline
         )
-        edit_button.pack(side=LEFT, padx=2, pady=(2, 2))  # Added pady for top and bottom
+        edit_button.pack(side=LEFT, padx=1)
         
         delete_button = ttk.Button(
             button_frame,
-            text="  🗑️",
+            text="🗑️",
             command=self._on_delete,
             style="danger.Link.TButton",
-            width=5,
+            width=3,
             takefocus=False  # Prevent focus outline
         )
-        delete_button.pack(side=LEFT, padx=2, pady=(2, 3))  # Added pady for top and bottom
+        delete_button.pack(side=LEFT, padx=1)
         
         # Details section - use grid for better alignment
         details_frame = ttk.Frame(container, padding=(10, 5, 0, 0))
@@ -201,8 +217,8 @@ class TaskFrame(ttk.Frame):
         if self.task["description"]:
             # Limit description length for display
             desc_text = self.task["description"]
-            if len(desc_text) > 25:
-                desc_text = desc_text[:25] + "..."
+            if len(desc_text) > 200:
+                desc_text = desc_text[:200] + "..."
                 
             desc_label = ttk.Label(
                 container,
@@ -229,6 +245,41 @@ class TaskFrame(ttk.Frame):
                     foreground="#FFFFFF"  # Ensuring white text for tags
                 )
                 tag_label.pack(side=LEFT, padx=(0, 5))
+
+    def _create_tooltip(self, widget, text):
+        """Create a tooltip for a widget when cursor hovers over it."""
+        def enter(event):
+            self.tooltip = tk.Toplevel(widget)
+            self.tooltip.wm_overrideredirect(True)  # Remove window decorations
+            
+            # Calculate position
+            x = widget.winfo_rootx() + widget.winfo_width() // 2
+            y = widget.winfo_rooty() + widget.winfo_height()
+            
+            # Position tooltip a bit below the widget
+            self.tooltip.wm_geometry(f"+{x}+{y+10}")
+            
+            # Create label with tooltip text
+            label = ttk.Label(
+                self.tooltip, 
+                text=text, 
+                justify=LEFT,
+                background="#3D3D3D", 
+                foreground="#FFFFFF",
+                relief=SOLID,
+                borderwidth=1,
+                padding=(5, 3)
+            )
+            label.pack()
+        
+        def leave(event):
+            if hasattr(self, 'tooltip'):
+                self.tooltip.destroy()
+                del self.tooltip
+        
+        # Bind events
+        widget.bind("<Enter>", enter)
+        widget.bind("<Leave>", leave)
 
     def _on_view(self):
         """
