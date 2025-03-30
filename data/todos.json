@@ -1,92 +1,14 @@
 [
     {
-        "id": "ce61bac8-47f1-4b4b-ae11-5fa0592a4a71",
-        "title": "Test Draft",
-        "description": "This is a test draft created on startup",
-        "created_at": "2025-03-30T11:00:22.143740",
-        "due_date": "2025-03-30T10:59:47.464006",
-        "priority": "Medium",
-        "status": "Completed",
-        "tags": [
-            "test"
-        ],
-        "completed_at": "2025-03-30T12:56:30.773873"
-    },
-    {
-        "id": "af86276f-4f79-4e4f-97c9-6f945fe06108",
-        "title": "vg",
-        "description": "hybn",
-        "created_at": "2025-03-30T11:00:46.290274",
-        "due_date": "2025-03-30T11:00:42.766849",
-        "priority": "High",
-        "status": "To Do",
-        "tags": [
-            "vbyhb"
-        ],
-        "completed_at": null
-    },
-    {
-        "id": "b1866f80-e6b3-4eb8-a421-136c9d150ac2",
-        "title": "gtrehyg",
-        "description": "yrthyt",
-        "created_at": "2025-03-30T12:19:42.985840",
-        "due_date": "2025-03-30T12:19:39.140848",
+        "id": "fcf7698c-9eae-44e5-a1af-7219f3c1e773",
+        "title": "hfgyr",
+        "description": "hjy",
+        "created_at": "2025-03-30T14:01:35.245636",
+        "due_date": "2025-03-30T14:01:32.233730",
         "priority": "Medium",
         "status": "To Do",
         "tags": [
-            "htrh"
-        ],
-        "completed_at": null
-    },
-    {
-        "id": "ca324a03-7bde-4fbd-9452-1675d88db0af",
-        "title": "hbythb",
-        "description": "ythbnyt",
-        "created_at": "2025-03-30T12:19:49.037780",
-        "due_date": "2025-03-30T12:19:45.354245",
-        "priority": "Medium",
-        "status": "To Do",
-        "tags": [
-            "njyhtgjy"
-        ],
-        "completed_at": null
-    },
-    {
-        "id": "f7e6e1d6-4908-4027-a268-813b749ac487",
-        "title": "hjnytjn",
-        "description": "jhnytf",
-        "created_at": "2025-03-30T12:19:56.579369",
-        "due_date": "2025-03-30T12:19:51.296547",
-        "priority": "Low",
-        "status": "To Do",
-        "tags": [
-            "jndtf"
-        ],
-        "completed_at": null
-    },
-    {
-        "id": "83bfb0d7-8f21-46b9-aa64-dba13075b3f5",
-        "title": "jytrfdjyr",
-        "description": "jyt",
-        "created_at": "2025-03-30T12:20:13.596779",
-        "due_date": "2025-03-30T12:20:08.395739",
-        "priority": "High",
-        "status": "To Do",
-        "tags": [
-            "jyt"
-        ],
-        "completed_at": null
-    },
-    {
-        "id": "14216eef-f7a5-4391-a924-348e2ca97962",
-        "title": "jtyh",
-        "description": "jtyh",
-        "created_at": "2025-03-30T12:21:13.858685",
-        "due_date": "2025-03-30T12:21:09.196792",
-        "priority": "Low",
-        "status": "To Do",
-        "tags": [
-            "jhty"
+            "hyrfg"
         ],
         "completed_at": null
     }

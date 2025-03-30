@@ -10,7 +10,8 @@ from dateutil import parser
 
 from .assign_draft_dialog import AssignDraftDialog
 from .add_draft_dialog import AddDraftDialog
-from .edit_draft_dialog import EditDraftDialog  # Import the new dialog
+from .edit_draft_dialog import EditDraftDialog
+from .view_draft_dialog import ViewDraftDialog  # Import the new dialog
 from ..utils.helpers import format_date
 from ..utils.card_styles import apply_card_styles
 from ..utils.grid_layout import SimpleGridLayout
@@ -99,6 +100,16 @@ class DraftTaskFrame(ttk.Frame):
         )
         assign_button.pack(side=LEFT, padx=2)
         
+        # Add View button
+        view_button = ttk.Button(
+            button_frame,
+            text="👁️",
+            command=self._on_view,
+            style="primary.Link.TButton",
+            width=3
+        )
+        view_button.pack(side=LEFT, padx=2)
+        
         # Add Edit button
         edit_button = ttk.Button(
             button_frame,
@@ -158,8 +169,8 @@ class DraftTaskFrame(ttk.Frame):
             
             # Description text with better wrapping and styling
             desc_text = self.draft["description"]
-            if len(desc_text) > 100:
-                desc_text = desc_text[:97] + "..."
+            if len(desc_text) > 25:
+                desc_text = desc_text[:25] + "..."
                 
             desc_label = ttk.Label(
                 desc_frame,
@@ -197,6 +208,12 @@ class DraftTaskFrame(ttk.Frame):
                     foreground="#FFFFFF"
                 )
                 tag_label.pack(side=LEFT, padx=(0, 5), pady=2)
+
+    def _on_view(self):
+        """
+        Handle view button click.
+        """
+        ViewDraftDialog(self.winfo_toplevel(), self.draft)
 
     def _on_assign(self):
         """
@@ -329,10 +346,17 @@ class DraftsFrame(ttk.Frame):
         # When canvas resizes, refresh the layout if needed
         self.drafts_grid_layout.refresh_on_resize(event)
     
-    def load_drafts(self):
+    def load_drafts(self, force_refresh=False):
         """
         Load and display draft tasks.
+        
+        Args:
+            force_refresh (bool): If True, reload data from file before displaying
         """
+        # Refresh data from file if requested
+        if force_refresh:
+            self.task_manager.refresh_data()
+            
         # Clear existing drafts
         self.drafts_grid_layout.clear()
         
@@ -414,8 +438,8 @@ class DraftsFrame(ttk.Frame):
             if parent and hasattr(parent, 'mark_drafts_for_refresh'):
                 parent.mark_drafts_for_refresh()
         
-        # Reload drafts
-        self.load_drafts()
+        # Reload drafts with a forced refresh from file
+        self.load_drafts(force_refresh=True)
     
     def _on_assign_draft(self, draft_id):
         """

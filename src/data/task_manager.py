@@ -36,6 +36,18 @@ class TaskManager:
         if self.tasks and len(self.tasks) > 0:
             print(f"First task: {self.tasks[0]['title']} - Status: {self.tasks[0]['status']}")
     
+    def refresh_data(self):
+        """
+        Refresh tasks and drafts data from files.
+        
+        Returns:
+            tuple: (tasks, drafts) freshly loaded data
+        """
+        self.tasks = self.json_handler.load_data()
+        self.drafts = self.drafts_handler.load_data()
+        print(f"Refreshed data: {len(self.tasks)} tasks, {len(self.drafts)} drafts")
+        return self.tasks, self.drafts
+    
     def add_task(self, title, description="", due_date=None, 
                 priority="Medium", tags=None, status="To Do"):
         """

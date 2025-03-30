@@ -9,6 +9,7 @@ from datetime import datetime
 from dateutil import parser
 
 from ..utils.helpers import format_date
+from .view_task_dialog import ViewTaskDialog  # Import the new dialog
 
 class TaskFrame(ttk.Frame):
     """
@@ -132,31 +133,44 @@ class TaskFrame(ttk.Frame):
             style=f"{priority_style}.Inverse.TLabel",
             font=("Helvetica", 9),
             padding=(5, 2),
-            foreground="#FFFFFF"  # Ensuring white text for priority label
+            foreground="#FFFFFF"
         )
         priority_badge.pack(side=LEFT, padx=5)
         
         # Button frame - right side
         button_frame = ttk.Frame(header_frame)
-        button_frame.pack(side=RIGHT)
+        button_frame.pack(side=RIGHT, anchor=CENTER)  # Ensure the frame is centered vertically
+        
+        # Add View button
+        view_button = ttk.Button(
+            button_frame,
+            text="   👁️",
+            command=self._on_view,
+            style="primary.Link.TButton", 
+            width=5,
+            takefocus=False  # Prevent focus outline
+        )
+        view_button.pack(side=LEFT, padx=0, pady=(0, 5))  # Added pady for top and bottom
         
         edit_button = ttk.Button(
             button_frame,
             text="✍",
             command=self._on_edit,
             style="info.Link.TButton", 
-            width=5
+            width=5,
+            takefocus=False  # Prevent focus outline
         )
-        edit_button.pack(side=LEFT, padx=2)
+        edit_button.pack(side=LEFT, padx=2, pady=(2, 2))  # Added pady for top and bottom
         
         delete_button = ttk.Button(
             button_frame,
-            text="🗑️",
+            text="  🗑️",
             command=self._on_delete,
             style="danger.Link.TButton",
-            width=5
+            width=5,
+            takefocus=False  # Prevent focus outline
         )
-        delete_button.pack(side=LEFT, padx=2)
+        delete_button.pack(side=LEFT, padx=2, pady=(2, 3))  # Added pady for top and bottom
         
         # Details section - use grid for better alignment
         details_frame = ttk.Frame(container, padding=(10, 5, 0, 0))
@@ -183,21 +197,12 @@ class TaskFrame(ttk.Frame):
         )
         due_date_label.grid(row=0, column=1, sticky=W)
         
-        # Created date
-        created_date_text = self._format_date(self.task["created_at"])
-        created_label = ttk.Label(
-            details_frame,
-            text=f"Created: {created_date_text}",
-            font=("Helvetica", 9)
-        )
-        created_label.grid(row=0, column=2, sticky=W)
-        
         # Description (if exists)
         if self.task["description"]:
             # Limit description length for display
             desc_text = self.task["description"]
-            if len(desc_text) > 100:
-                desc_text = desc_text[:97] + "..."
+            if len(desc_text) > 25:
+                desc_text = desc_text[:25] + "..."
                 
             desc_label = ttk.Label(
                 container,
@@ -224,6 +229,12 @@ class TaskFrame(ttk.Frame):
                     foreground="#FFFFFF"  # Ensuring white text for tags
                 )
                 tag_label.pack(side=LEFT, padx=(0, 5))
+
+    def _on_view(self):
+        """
+        Handle view button click.
+        """
+        ViewTaskDialog(self.winfo_toplevel(), self.task)
 
     def _on_status_toggled(self):
         """

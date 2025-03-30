@@ -65,10 +65,21 @@ class TodoApp:
         self._create_widgets()
         self._setup_layout()
         
-        # Only load the initial tab's data (Tasks tab is shown first)
+        # Schedule the initial refresh after the UI is fully loaded
+        self.root.after(100, self._initial_refresh)
+        
+    def _initial_refresh(self):
+        """
+        Perform initial data refresh after UI is fully loaded.
+        """
+        print("Performing initial refresh on startup...")
+        # Force a data refresh from files
+        self.task_manager.refresh_data()
+        # Load tasks with fresh data
         self._load_tasks()
         self.tasks_loaded = True
-        
+        self.tasks_need_refresh = False
+    
     def _configure_custom_styles(self):
         """
         Configure custom styles for widgets.
@@ -124,14 +135,8 @@ class TodoApp:
         # Main frame
         self.main_frame = ttk.Frame(self.root)
         
-        # Header
+        # Header frame (keeping empty for potential future use)
         self.header_frame = ttk.Frame(self.main_frame)
-        title_label = ttk.Label(
-            self.header_frame, 
-            text="ToDo Widget", 
-            style="Title.TLabel"
-        )
-        title_label.pack(side=LEFT, padx=10, pady=10)
         
         # Notebook (Tabs)
         self.notebook = ttk.Notebook(self.main_frame)
@@ -291,7 +296,7 @@ class TodoApp:
         Layout the widgets.
         """
         self.main_frame.pack(fill=BOTH, expand=True, padx=10, pady=10)
-        self.header_frame.pack(fill=X, pady=(0, 10))
+        # Remove the vertical padding that was used for the title
         self.notebook.pack(fill=BOTH, expand=True)
         
         # Layout for Tasks tab
@@ -335,33 +340,41 @@ class TodoApp:
         try:
             # Clear existing tasks
             self.tasks_grid_layout.clear()
-            
+
             # Get all tasks for debugging
             all_tasks = self.task_manager.get_all_tasks()
             print(f"All tasks count: {len(all_tasks)}")
-            
+
             # Get tasks based on filters
             tasks = self._get_filtered_tasks()
             print(f"Filtered tasks count: {len(tasks)}")
-            
+
             # Sort tasks
             tasks = self._sort_tasks(tasks)
+
+            # Create a new debug frame every time rather than trying to reuse it
+            # This avoids errors with invalid window path names
+            if hasattr(self, 'debug_frame'):
+                try:
+                    self.debug_frame.destroy()
+                except Exception:
+                    pass  # Ignore errors if it's already been destroyed
             
-            # Create debug info frame
-            debug_frame = ttk.Frame(self.scrollable_frame)
-            debug_frame.grid(row=0, column=0, columnspan=10, sticky="ew", padx=10, pady=5)
-            
+            # Create a fresh debug frame
+            self.debug_frame = ttk.Frame(self.scrollable_frame)
+            self.debug_frame.grid(row=0, column=0, columnspan=10, sticky="ew", padx=10, pady=5)
+
             ttk.Label(
-                debug_frame, 
-                text=f"Total tasks: {len(all_tasks)} | Filtered: {len(tasks)} | Filter: {self.filter_var.get()} | Show Completed: {self.show_completed_var.get()}", 
+                self.debug_frame,
+                text=f"Total tasks: {len(all_tasks)} | Filtered: {len(tasks)} | Filter: {self.filter_var.get()} | Show Completed: {self.show_completed_var.get()}",
                 foreground="#FFFFFF",
                 font=("Helvetica", 10)
             ).pack(anchor=tk.W)
-            
+
             # Add tasks to the UI
             if not tasks:
                 empty_label = ttk.Label(
-                    self.scrollable_frame, 
+                    self.scrollable_frame,
                     text="No tasks found. Click 'Add Task' to create a new one.",
                     font=("Helvetica", 12),
                     foreground="gray"
@@ -371,8 +384,8 @@ class TodoApp:
                 # Add tasks to the grid layout
                 for task in tasks:
                     task_frame = TaskFrame(
-                        self.scrollable_frame, 
-                        task, 
+                        self.scrollable_frame,
+                        task,
                         self._on_status_change,
                         self._on_edit_task,
                         self._on_delete_task
@@ -382,25 +395,25 @@ class TodoApp:
                     # Add to grid layout
                     self.tasks_grid_layout.add_item(task_frame)
                     print(f"Added task to UI: {task['title']}")
-                
+
             # Update statistics
             self.stats_frame.update_stats()
-            
+
         except Exception as e:
             error_msg = f"Error loading tasks: {str(e)}\n{traceback.format_exc()}"
             print(error_msg)  # Print to console
-            
+
             # Display error in UI
             error_frame = ttk.Frame(self.scrollable_frame)
             error_frame.pack(fill=X, pady=10, padx=10)
-            
+
             ttk.Label(
-                error_frame, 
-                text="Error loading tasks:", 
+                error_frame,
+                text="Error loading tasks:",
                 foreground="#FF5252",
                 font=("Helvetica", 12, "bold")
             ).pack(anchor=W)
-            
+
             error_text = tk.Text(error_frame, height=10, width=80, bg="#3D3D3D", fg="#FFFFFF")
             error_text.insert("1.0", error_msg)
             error_text.configure(state="disabled")
