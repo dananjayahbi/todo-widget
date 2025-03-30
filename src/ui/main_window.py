@@ -16,7 +16,7 @@ from .statistics_frame import StatisticsFrame
 from .draft_frame import DraftsFrame
 from ..utils.helpers import center_window
 from ..utils.custom_theme import create_custom_dark_theme
-from ..utils.grid_layout import ResponsiveGridLayout
+from ..utils.grid_layout import SimpleGridLayout
 from ..utils.card_styles import apply_card_styles
 
 class TodoApp:
@@ -186,11 +186,11 @@ class TodoApp:
             tags="self.scrollable_frame"
         )
         
-        # Setup the responsive grid layout for tasks
-        self.tasks_grid_layout = ResponsiveGridLayout(
+        # Setup the grid layout for tasks with simple implementation
+        self.tasks_grid_layout = SimpleGridLayout(
             parent_frame=self.scrollable_frame,
-            canvas=self.canvas,
-            min_column_width=320  # Set a fixed card width
+            min_column_width=320,
+            padding=5
         )
         
         # Update the scrollable frame width when canvas changes
@@ -235,8 +235,8 @@ class TodoApp:
         # Force update the scroll region
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
         
-        # When canvas resizes, force layout recalculation
-        self.tasks_grid_layout.on_canvas_resize(event)
+        # When canvas resizes, check if layout needs to be updated
+        self.tasks_grid_layout.refresh_on_resize(event)
     
     def _setup_layout(self):
         """
@@ -275,7 +275,7 @@ class TodoApp:
         Load tasks from the task manager.
         """
         try:
-            # Clear existing tasks and reset the grid layout
+            # Clear existing tasks
             self.tasks_grid_layout.clear()
             
             # Get all tasks for debugging
@@ -291,14 +291,14 @@ class TodoApp:
             
             # Create debug info frame
             debug_frame = ttk.Frame(self.scrollable_frame)
-            debug_frame.pack(fill=X, pady=5, padx=10)
+            debug_frame.grid(row=0, column=0, columnspan=10, sticky="ew", padx=10, pady=5)
             
             ttk.Label(
                 debug_frame, 
                 text=f"Total tasks: {len(all_tasks)} | Filtered: {len(tasks)} | Filter: {self.filter_var.get()}", 
                 foreground="#FFFFFF",
                 font=("Helvetica", 10)
-            ).pack(anchor=W)
+            ).pack(anchor=tk.W)
             
             # Add tasks to the UI
             if not tasks:
@@ -308,9 +308,9 @@ class TodoApp:
                     font=("Helvetica", 12),
                     foreground="gray"
                 )
-                empty_label.pack(pady=50)
+                empty_label.grid(row=1, column=0, columnspan=10, pady=50)
             else:
-                # Add tasks to the responsive grid layout
+                # Add tasks to the grid layout
                 for task in tasks:
                     task_frame = TaskFrame(
                         self.scrollable_frame, 

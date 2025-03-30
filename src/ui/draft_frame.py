@@ -12,7 +12,7 @@ from .assign_draft_dialog import AssignDraftDialog
 from .add_draft_dialog import AddDraftDialog
 from ..utils.helpers import format_date
 from ..utils.card_styles import apply_card_styles
-from ..utils.grid_layout import ResponsiveGridLayout
+from ..utils.grid_layout import SimpleGridLayout
 
 class DraftTaskFrame(ttk.Frame):
     """
@@ -270,11 +270,11 @@ class DraftsFrame(ttk.Frame):
             tags="self.scrollable_frame"
         )
         
-        # Setup the responsive grid layout for drafts
-        self.drafts_grid_layout = ResponsiveGridLayout(
+        # Setup the grid layout for drafts with simple implementation
+        self.drafts_grid_layout = SimpleGridLayout(
             parent_frame=self.scrollable_frame,
-            canvas=self.canvas,
-            min_column_width=320  # Set a fixed card width matching the tasks
+            min_column_width=320,
+            padding=5
         )
         
         # Update scrollable frame width when canvas changes
@@ -297,8 +297,8 @@ class DraftsFrame(ttk.Frame):
         # Force update the scroll region
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
         
-        # When canvas resizes, force layout recalculation
-        self.drafts_grid_layout.on_canvas_resize(event)
+        # When canvas resizes, refresh the layout if needed
+        self.drafts_grid_layout.refresh_on_resize(event)
     
     def load_drafts(self):
         """
@@ -319,9 +319,9 @@ class DraftsFrame(ttk.Frame):
                 font=("Helvetica", 12),
                 foreground="gray"
             )
-            empty_label.pack(pady=50)
+            empty_label.grid(row=0, column=0, columnspan=10, pady=50)
         else:
-            # Add drafts to the responsive grid layout
+            # Add drafts to the grid layout
             for draft in drafts:
                 print(f"Adding draft: {draft['title']}")
                 draft_frame = DraftTaskFrame(
