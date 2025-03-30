@@ -225,7 +225,7 @@ class VirtualizedGridLayout:
         # Calculate item positions
         for i, (item_factory, item_data) in enumerate(self.all_items):
             row = i // self.current_columns
-            col = i % columns
+            col = i % self.current_columns  # Fixed: use self.current_columns instead of undefined 'columns'
             
             # Calculate the position of this item
             item_top = row * (self.min_column_width + (2 * self.padding))
